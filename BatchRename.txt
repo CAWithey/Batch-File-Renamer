@@ -1,0 +1,160 @@
+@ECHO OFF
+Setlocal EnableDelayedExpansion
+
+: *** Replace the directory listed below with the directory containing your own Tag files. ***
+
+set directory="Z:\Desktop\TempTags\"
+
+: ***  Replace the directory listed above with the directory containing your own Tag files.  ***
+
+echo * Automated Jivox Tag Renaming System v1.27 *
+echo For Medium Rectangle, Wide Skyscraper, Leaderboard, Half Page, Web Mail and Pushdown tags
+
+
+:Start
+set /p null="Waiting on key press..."
+if exist %directory%*Tag.txt (
+  set /a campaignid+=0
+  set /a oldnum+=0
+  goto Copy
+) ELSE (
+  echo No unprocessed Tags detected.
+  goto Start
+)
+
+
+:Copy
+cls
+for %%i in (%directory%*Tag.txt) do @set fullfile=%%i
+set origfile=%fullfile%
+set file=%fullfile:~-69%
+set fullfile="%fullfile%"
+goto Filter
+
+
+:Filter
+(xcopy %fullfile% Processing.txt*)>NUL
+if NOT exist Processing.txt (
+  echo *** Error. Could not copy tag file. ***
+  goto Start
+)
+(echo %file% | findstr /R "In-Banner")>NUL && goto Banner
+(echo %file% | findstr /R "Wide-Skyscraper")>NUL && goto Skyscraper
+(echo %file% | findstr /R "Leaderboard")>NUL && goto Leaderboard
+(echo %file% | findstr /R "Half-Page")>NUL && goto HalfPage
+(echo %fullfile% | findstr /R "Webmail")>NUL && goto Webmail
+(echo %fullfile% | findstr /R "pushdown")>NUL && goto Pushdown
+echo *** Error. Could not process Campaign ID. ***
+goto Start
+
+
+:Banner
+echo Using campaign ID from 300x250 Rectangle.
+set tokens=11
+set newfile=%fullfile:~-69%
+set abbr=
+goto Processing
+
+
+:Skyscraper
+echo Using campaign ID from 160x600 Skyscraper.
+set tokens=11
+set newfile=%fullfile:~-73%
+set abbr=TR 
+goto Processing
+
+
+:Leaderboard
+echo Using campaign ID from 728x90 Leaderboard.
+set tokens=11
+set newfile=%fullfile:~-69%
+set abbr=LB 
+goto Processing
+
+
+:HalfPage
+echo Using campaign ID from 300x600 Super Tower.
+set tokens=8
+set newfile=%fullfile:~-67%
+set abbr=ST 
+goto Processing
+
+
+:Webmail
+echo Using campaign ID from Webmail.
+for %%i in (%directory%*Tag.txt) do @set file=%%~ni
+set tokens=8
+set newfile=%fullfile:~-67%
+set abbr=""
+set origfile=%origfile:~0,-4%
+for /f "tokens=%tokens% delims==" %%i in (Processing.txt) do @set campaignid=%%i
+set campaignid=%campaignid:~0,5%
+del Processing.txt
+set newfile="%file% Jivox_%campaignid%.txt"
+goto Decision
+
+
+:Pushdown
+echo Using campaign ID from Pushdown.
+for %%i in (%directory%*Tag.txt) do @set file=%%~ni
+set tokens=11
+set newfile=%fullfile:~-67%
+set abbr=""
+set origfile=%origfile:~0,-4%
+for /f "tokens=%tokens% delims==" %%i in (Processing.txt) do @set campaignid=%%i
+set campaignid=%campaignid:~0,5%
+del Processing.txt
+set newfile="%file% Jivox_%campaignid%.txt"
+goto Decision
+
+
+:Processing
+for /f "tokens=%tokens% delims==" %%i in (Processing.txt) do @set campaignid=%%i
+set campaignid=%campaignid:~0,5%
+set newfile=%newfile:~0,12%
+set newfile="%newfile% %abbr% Jivox_%campaignid%.txt"
+del Processing.txt
+if %campaignid% EQU %oldnum% (
+  echo Campaign ID Match.  Using Campaign ID stored in memory.
+  goto Auto
+) ELSE (
+  goto Decision
+)
+
+
+:Decision
+echo Detected Campaign ID is: "%campaignid%".  Is this correct?
+choice /C YQWERTUIOPASDFGHJKLZXCVBNM /N /M "Press 'Y' for yes; Press any other key to type in manually:"
+if %ERRORLEVEL% EQU 1 (
+  goto Auto
+) ELSE (
+  goto Manual
+)
+
+
+:Manual
+set /p campaignid="Enter Five Digit CampaignID: "
+set /a campaignid+=0
+if %campaignid% GTR 99999 (
+  set campaignid=0
+)
+if %campaignid% GTR 10000 (
+  REN %fullfile% %newfile%
+  set oldnum=%campaignid%
+  set campaignid=0
+  set file=0
+  echo Tag Processed.
+  goto Start
+) ELSE (
+  echo Incorrect Campaign ID
+  goto Manual
+)
+
+
+:Auto
+REN %fullfile% %newfile%
+set oldnum=%campaignid%
+set file=0
+set campaignid=0
+echo Tag Processed.
+goto Start
